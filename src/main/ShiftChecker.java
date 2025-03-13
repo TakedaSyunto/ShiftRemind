@@ -20,15 +20,17 @@ public class ShiftChecker {
         String currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
 
         // `shiftYYYYMM` の time フィールドが現在時刻の 30 分以内のレコードを取得
-        // `timecardYYYYMM` の status が '未出勤' のものを対象とする
         String sql = String.format("""
-            SELECT u.line_id, u.name  -- LINE ID とユーザー名を取得
-            FROM shift%s s  -- 動的に shift テーブルを指定
-            JOIN timecard%s t ON s.date = t.date AND s.id = t.id  -- シフトとタイムカードを結合
-            JOIN user u ON s.id = u.id  -- ユーザー情報と結合
-            WHERE s.time BETWEEN NOW() AND NOW() + INTERVAL 30 MINUTE  -- 出勤30分前のシフトを抽出
-            AND t.status = '未出勤'  -- 未出勤のユーザーのみ対象
-        """, currentMonth, currentMonth);
+        	    SELECT lm.line_id, u.name
+        	    FROM shift%s s
+        	    JOIN timecard%s t ON s.date = t.date AND s.id = t.id
+        	    JOIN user u ON s.id = u.id
+        	    JOIN line_mappings lm ON u.id = lm.user_id
+        	    WHERE s.time BETWEEN NOW() AND NOW() + INTERVAL 30 MINUTE
+        	    AND t.start_time IS NULL
+        	""", currentMonth, currentMonth);
+
+
 
         // データベース接続 & クエリ実行
         try (Connection conn = DriverManager.getConnection(url, user, password);
@@ -36,7 +38,7 @@ public class ShiftChecker {
              ResultSet rs = stmt.executeQuery()) {
 
             System.out.println("データベース接続成功！");
-            System.out.println("実行するSQL: " + sql); // デバッグ用 (確認しやすいように表示)
+            System.out.println("実行するSQL: " + sql); // デバッグ用
 
             // 通知対象の LINE ユーザー ID を格納するリスト
             List<String> usersToNotify = new ArrayList<>();
